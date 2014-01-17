@@ -1,0 +1,33 @@
+function ztesting.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  TABLES
+*"      TEMPO STRUCTURE  PA0001
+*"----------------------------------------------------------------------
+
+types: begin of intab,
+       pernr like pa0001-pernr,
+       end of intab.
+
+data: date like sy-datum.
+
+date = sy-datum.
+
+
+select pernr from pa0001 into corresponding fields of table tempo where begda < date and endda > date.
+
+
+
+
+
+endfunction.
+
+
+
+
+
+
+
+
+
+*create table exchange for the table "TEMPO" for data to be exchanged to php
