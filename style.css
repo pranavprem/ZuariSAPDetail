@@ -1,0 +1,30 @@
+table
+{   
+    border-style:inset;
+    border-radius:10px;
+    border-collapse:collapse;
+}
+
+th
+{
+    align-content:center;
+    border-style:inset;
+    border-radius:10px;
+    border-collapse:collapse;
+}
+
+tr
+{
+    border-style:inset;
+    border-radius:10px;
+    border-collapse:collapse;
+    
+}
+
+td
+{
+    text-align:center;
+    border-style:inset;
+    border-radius:10px;
+    border-collapse:collapse;
+}
