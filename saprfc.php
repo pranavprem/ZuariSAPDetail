@@ -28,10 +28,16 @@
 
 */
 
-// For easy checking of BAPI-type values
+// For easy checking of BAPI-type values.
+// SAPRFC_OK / SAPRFC_EXCEPTION match the classic RFC SDK (RFC_OK = 0,
+// RFC_EXCEPTION = 2) and are registered by the saprfc extension when it
+// is loaded. SAPRFC_ERROR and SAPRFC_APPL_ERROR are this class's own
+// status codes; APPL_ERROR shares the integer 2 with SAPRFC_EXCEPTION,
+// but the two are never compared with each other.
 if (!defined("SAPRFC_OK")) define("SAPRFC_OK",0);
 if (!defined("SAPRFC_ERROR")) define("SAPRFC_ERROR",1);
 if (!defined("SAPRFC_APPL_ERROR")) define ("SAPRFC_APPL_ERROR",2);
+if (!defined("SAPRFC_EXCEPTION")) define("SAPRFC_EXCEPTION",2);
 
 
 class saprfc {
@@ -46,7 +52,8 @@ class saprfc {
 	var $debug;
 	var $call_function_result;
 
-	function saprfc($config=array()) {
+	// PHP 4 called this constructor saprfc(). PHP 8 only calls __construct.
+	function __construct($config=array()) {
 		$this->rfc_conn=false;
 		$this->func_id=false;
 		$this->show_status_flag=isset($config["show_errors"]) ? $config["show_errors"] : true;
@@ -68,6 +75,9 @@ class saprfc {
 	function login() {
 	   	if (!$this->rfc_conn)
 	   	{
+			if (!extension_loaded("saprfc") || !function_exists("saprfc_open")) {
+				return $this->setStatus(SAPRFC_ERROR,"saprfc::login()\n SAPRFC extension is not loaded.");
+			}
 		   	$this->rfc_conn=@saprfc_open($this->logindata);
 			if (!$this->rfc_conn) {
 				return $this->setStatus(SAPRFC_ERROR,"saprfc::login()\nOpen RFC connection with saprfc_open() failed with error:\n".@saprfc_error());
@@ -80,7 +90,10 @@ class saprfc {
 	function logoff() {
 	   	if ($this->rfc_conn)
 	   	{
-			@saprfc_close($this->rfc_conn);
+			if (function_exists("saprfc_close")) {
+				@saprfc_close($this->rfc_conn);
+			}
+			$this->rfc_conn=false;
 		}
 	}
 
@@ -108,7 +121,15 @@ class saprfc {
 				$statustext=$this->status_infos;
 				break;
 			case SAPRFC_APPL_ERROR:
-				$statustext=$this->status_infos["TYPE"]." ".$this->status_infos["ID"]."-".$this->status_infos["NUMBER"].": ".$this->status_infos["MESSAGE"];
+				if (is_array($this->status_infos)) {
+					$type=isset($this->status_infos["TYPE"])?$this->status_infos["TYPE"]:"";
+					$id=isset($this->status_infos["ID"])?$this->status_infos["ID"]:"";
+					$number=isset($this->status_infos["NUMBER"])?$this->status_infos["NUMBER"]:"";
+					$message=isset($this->status_infos["MESSAGE"])?$this->status_infos["MESSAGE"]:"";
+					$statustext=$type." ".$id."-".$number.": ".$message;
+				} else {
+					$statustext=(string)$this->status_infos;
+				}
 				break;
 			case SAPRFC_ERROR:
 				$statustext=$this->status_infos;
@@ -120,26 +141,27 @@ class saprfc {
 	// Returns actual Status/Error
 	function getStatusTextLong() {
 		$statustext="";
+		$detail=htmlspecialchars($this->getStatusText(), ENT_QUOTES, "UTF-8");
 		switch ($this->status) {
 			case SAPRFC_OK:
 				$statustext.="<br><font size=4 color=green><pre>";
 				$statustext.="No errors detected.";
 				$statustext.="</font><br><font size=3 color=green><pre>";
-				$statustext.="<br><b>".$this->getStatusText()."</b>";
+				$statustext.="<br><b>".$detail."</b>";
 				$statustext.="</pre></font>";
 				break;
 			case SAPRFC_APPL_ERROR:
 				$statustext.="<br><font size=4 color=red><pre>";
 				$statustext.="Application-Errors found during BAPI-Calls:";
 				$statustext.="</font><br><font size=3 color=red><pre>";
-				$statustext.="<br><b>".$this->getStatusText()."</b>";
+				$statustext.="<br><b>".$detail."</b>";
 				$statustext.="</pre></font>";
 				break;
 			case SAPRFC_ERROR:
 				$statustext.="<br><font size=4 color=red><pre>";
 				$statustext.="Errors found during saprfc-Calls:";
 				$statustext.="</font><br><font size=3 color=red><pre>";
-				$statustext.="<br><b>".$this->getStatusText()."</b>";
+				$statustext.="<br><b>".$detail."</b>";
 				$statustext.="</pre></font>";
 				break;
 		}
@@ -151,7 +173,7 @@ class saprfc {
 	}		
 	
 	// Call RFC-Function in SAP		
-	function callFunction($func_name="",$parameters) {
+	function callFunction($func_name="", $parameters=array()) {
 		/* typical call:
 			$result=$saprfc->call_function("RFC_SYSTEM_INFO",
 									array(	array("EXPORT","SYSTEM","MBS")
@@ -165,15 +187,15 @@ class saprfc {
 		// Initialize Variables
 		$result_data=array();
 		$this->call_function_result=false;
-						
-		// Check SAPRFC-Installation
-		if (! extension_loaded ("saprfc")) {
-			return $this->setStatus(SAPRFC_ERROR,"saprfc::callFunction()\n SAPRFC-Extension.dll not loaded.");
-		}
-		
-		// Validate given data
-		if (empty($func_name)) {
+
+		// Validate the call before touching SAP, so a bad argument is not
+		// reported as a missing extension.
+		if (!is_string($func_name) || trim($func_name)==="") {
 			return $this->setStatus(SAPRFC_ERROR,"saprfc::callFunction():\n No Function-Name given");
+		}
+
+		if (!is_array($parameters)) {
+			return $this->setStatus(SAPRFC_ERROR,"saprfc::callFunction()\n Parameters must be an array of IMPORT, EXPORT, or TABLE entries.");
 		}
 		
 		// Move Parameters to local Arrays
@@ -181,6 +203,9 @@ class saprfc {
 		$func_params_tables=array();
 		$func_params_export=array();
 		foreach ($parameters as $key => $param) {
+			if (!is_array($param) || !isset($param[0]) || !isset($param[1])) {
+				return $this->setStatus(SAPRFC_ERROR,"saprfc::callFunction()\n Each parameter must be an array of type, name, and optional value.");
+			}
 			$type=$param[0];
 			$name=$param[1];
 			$value=isset($param[2])?$param[2]:"";
@@ -202,6 +227,11 @@ class saprfc {
 			}
 		}
 		
+		// Check SAPRFC-Installation
+		if (! extension_loaded ("saprfc")) {
+			return $this->setStatus(SAPRFC_ERROR,"saprfc::callFunction()\n saprfc PHP extension is not loaded.");
+		}
+
 		// Do Login (only done in method login(), if necessary)	
 		if ($this->login()==SAPRFC_ERROR) {
 			return $this->getStatus();
@@ -268,8 +298,9 @@ class saprfc {
 		$this->call_function_result=$result_data;
 		
 		// Echo Debug-Information, if flagged
-		if ($this->debug)
+		if ($this->debug) {
 			@saprfc_function_debug_info($this->func_id);
+		}
 			
 		// Falls es ein BAPI-Aufruf ist, Fehler raussuchen
 		if ($this->check_bapi_errors) {
@@ -277,6 +308,7 @@ class saprfc {
 			if (isset($bapi_return) && 
 					is_array($bapi_return) && 
 					isset($bapi_return["MESSAGE"]) && 
+					isset($bapi_return["NUMBER"]) && 
 					$bapi_return["NUMBER"] != 0) {
 					
 				// FINISH FUNCTION-CALL
@@ -293,5 +325,3 @@ class saprfc {
 	}
 	
 }
-
-?>

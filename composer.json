@@ -1,0 +1,29 @@
+{
+    "name": "pranavprem/zuari-sap-detail",
+    "description": "PHP page that lists current SAP personnel numbers through function module ZTESTING.",
+    "type": "project",
+    "require": {
+        "php": ">=8.3"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "phpunit/phpunit": "^11.5"
+    },
+    "scripts": {
+        "test": "phpunit -c phpunit.xml.dist",
+        "format": "php-cs-fixer fix",
+        "lint": [
+            "@php -l saprfc.php",
+            "@php -l ztesting.php",
+            "@php -l index.php",
+            "@php -l tests/bootstrap.php",
+            "@php -l tests/SaprfcTest.php",
+            "@php -l tests/ZtestingTest.php",
+            "php-cs-fixer fix --dry-run --diff"
+        ],
+        "serve": "@php -S localhost:8080"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

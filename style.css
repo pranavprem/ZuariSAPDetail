@@ -1,30 +1,67 @@
-table
-{   
-    border-style:inset;
-    border-radius:10px;
-    border-collapse:collapse;
+body {
+    margin: 2rem 1rem;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: #1c1915;
+    background: #f4f1ea;
 }
 
-th
-{
-    align-content:center;
-    border-style:inset;
-    border-radius:10px;
-    border-collapse:collapse;
+main {
+    max-width: 28rem;
+    margin: 0 auto;
 }
 
-tr
-{
-    border-style:inset;
-    border-radius:10px;
-    border-collapse:collapse;
-    
+h1 {
+    margin: 0 0 0.4rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-align: center;
 }
 
-td
-{
-    text-align:center;
-    border-style:inset;
-    border-radius:10px;
-    border-collapse:collapse;
+.lede,
+.empty {
+    margin: 0 0 1rem;
+    text-align: center;
+    color: #4e4942;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #d5d0c6;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th,
+td {
+    padding: 0.65rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid #e6e1d6;
+}
+
+th {
+    background: #efeae0;
+    letter-spacing: 0.04em;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+.notice,
+.error {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+}
+
+.notice {
+    background: #fff4cc;
+    color: #5c4810;
+}
+
+.error {
+    background: #fde8e4;
+    color: #8a2418;
 }
